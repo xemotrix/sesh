@@ -3,10 +3,11 @@ package creator
 import (
 	"io/fs"
 	"regexp"
-	filesystem "sesh/file_system"
-	"sesh/tmux"
 	"slices"
 	"strings"
+
+	filesystem "github.com/xemotrix/sesh/file_system"
+	"github.com/xemotrix/sesh/tmux"
 
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textinput"

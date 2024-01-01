@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"sesh/tmux"
 	"slices"
 	"strings"
+
+	"github.com/xemotrix/sesh/tmux"
 
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/list"

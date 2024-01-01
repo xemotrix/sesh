@@ -1,8 +1,8 @@
 package switcher
 
 import (
-	fs "sesh/file_system"
-	"sesh/tmux"
+	fs "github.com/xemotrix/sesh/file_system"
+	"github.com/xemotrix/sesh/tmux"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

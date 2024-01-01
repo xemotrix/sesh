@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"sesh/creator"
-	"sesh/switcher"
+
+	"github.com/xemotrix/sesh/creator"
+	"github.com/xemotrix/sesh/switcher"
 
 	"github.com/spf13/cobra"
 )
