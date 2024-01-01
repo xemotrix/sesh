@@ -16,7 +16,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&Path, "path", "p", "~/", "base path for sessions")
+	rootCmd.PersistentFlags().StringVarP(&Path, "path", "p", "~", "base path for sessions")
 }
 
 func Execute() {

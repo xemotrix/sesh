@@ -49,6 +49,16 @@ func GetCurrentSession() (string, error) {
 	return strings.TrimSpace(string(cmdOutput)), nil
 }
 
+func KillSessions(sessions []string) error {
+	for _, session := range sessions {
+		cmd := exec.Command("tmux", "kill-session", "-t", session)
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func CreateSession(basePath, session string) error {
 	cmd := exec.Command(
 		"tmux", "new",

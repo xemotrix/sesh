@@ -9,15 +9,18 @@ import (
 	"strings"
 )
 
-func GetDirs(path string) ([]fs.DirEntry, error) {
-	if strings.HasPrefix(path, "~/") {
+func CleanPath(path string) (string, error) {
+	if strings.HasPrefix(path, "~") {
 		user, err := user.Current()
 		if err != nil {
-			return nil, err
+			return "", err
 		}
-		path = filepath.Join(user.HomeDir, path[2:])
+		path = filepath.Join(user.HomeDir, path[1:])
 	}
+	return path, nil
+}
 
+func GetDirs(path string) ([]fs.DirEntry, error) {
 	files, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err

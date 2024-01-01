@@ -36,7 +36,11 @@ var (
 
 	boldStyle = lipgloss.NewStyle().Bold(true)
 
-	errorStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
+	errorStyle = lipgloss.NewStyle().
+			PaddingTop(1).
+			Foreground(lipgloss.Color("#C34043")).
+			Bold(true)
+
 	sessionItemStyle  = lipgloss.NewStyle().PaddingLeft(4)
 	dirItemStyle      = lipgloss.NewStyle().PaddingLeft(4).Foreground(lipgloss.Color("#727169"))
 	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("#FF9E3B"))
@@ -183,10 +187,13 @@ func (m model) View() string {
 	}
 	base += m.list.View()
 	base += "\n"
-	if m.err != nil {
-		base += "\n" + errorStyle.Render("Error: "+m.err.Error())
-	}
 
 	lstr := globalStyle.Render(base)
+
+	if m.err != nil {
+		lstr += "\n" + errorStyle.Render("Error: "+m.err.Error())
+	} else {
+		lstr += "\n"
+	}
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, lstr)
 }

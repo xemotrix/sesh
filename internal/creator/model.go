@@ -36,6 +36,7 @@ var (
 			PaddingTop(1)
 
 	errorStyle = lipgloss.NewStyle().
+			PaddingTop(1).
 			Foreground(lipgloss.Color("#C34043")).
 			Bold(true)
 
