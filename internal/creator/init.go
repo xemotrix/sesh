@@ -4,8 +4,8 @@ import (
 	"io/fs"
 	"os"
 
-	filesystem "github.com/xemotrix/sesh/file_system"
-	"github.com/xemotrix/sesh/tmux"
+	filesystem "github.com/xemotrix/sesh/internal/file_system"
+	"github.com/xemotrix/sesh/internal/tmux"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

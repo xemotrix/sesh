@@ -40,6 +40,15 @@ func GetSessions() ([]string, error) {
 	return sessions, nil
 }
 
+func GetCurrentSession() (string, error) {
+	cmd := exec.Command("tmux", "display-message", "-p", "#S")
+	cmdOutput, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(cmdOutput)), nil
+}
+
 func CreateSession(basePath, session string) error {
 	cmd := exec.Command(
 		"tmux", "new",

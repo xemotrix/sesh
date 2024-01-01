@@ -1,13 +1,13 @@
 package creator
 
 import (
+	"fmt"
 	"io/fs"
 	"regexp"
 	"slices"
-	"strings"
 
-	filesystem "github.com/xemotrix/sesh/file_system"
-	"github.com/xemotrix/sesh/tmux"
+	filesystem "github.com/xemotrix/sesh/internal/file_system"
+	"github.com/xemotrix/sesh/internal/tmux"
 
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -15,19 +15,34 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+const (
+	WIDTH  = 50
+	HEIGHT = 10
+	MAXLEN = 35
+)
+
 var (
 	globalStyle = lipgloss.NewStyle().
-			AlignVertical(lipgloss.Bottom).
-			Width(60).
+			AlignVertical(lipgloss.Top).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#C8C093")).
+			Width(WIDTH).
+			Height(HEIGHT).
 			PaddingLeft(2)
 
-	filterStyle = lipgloss.NewStyle().
+	inputStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#C8C093")).
-			PaddingLeft(2)
+			PaddingLeft(2).
+			PaddingTop(1)
 
 	errorStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#C34043")).
 			Bold(true)
+
+	tipStyle = lipgloss.NewStyle().
+			PaddingTop(1).
+			PaddingLeft(2).
+			Foreground(lipgloss.Color("#727169"))
 
 	feedbackStyle = lipgloss.NewStyle().
 			PaddingTop(2).
@@ -58,12 +73,16 @@ const (
 	seshNameValid
 	seshNameRepeated
 	seshNameInvalidChars
+	seshNameTooLong
 )
 
 func (m model) validateSessionName(name string) sessionNameEval {
-	name = strings.TrimSpace(name)
+	// name = strings.TrimSpace(name)
 	if name == "" {
 		return seshNameEmpty
+	}
+	if len(name) > MAXLEN {
+		return seshNameTooLong
 	}
 	regex := regexp.MustCompile(`^([A-Za-z])(\w|-)*$`)
 	if slices.Contains(m.invalidNames, name) {
@@ -133,19 +152,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	base := ""
-	base += filterStyle.Render(m.input.View()) + "\n"
+	base += inputStyle.Render(m.input.View()) + "\n"
+
 	switch m.validity {
 	case seshNameEmpty:
 		base += feedbackStyle.Render("\n")
+		// base += feedbackStyle.Render("\n")
 	case seshNameValid:
-		base += validStyle.Render("✔ Valid!")
+		base += validStyle.Render("✔ Valid!") + "\n"
 	case seshNameRepeated:
-		base += invalidStyle.Render("✖ Conflict with existing session or directory")
+		base += invalidStyle.Render("✖ Conflict with existing session or directory\n")
 	case seshNameInvalidChars:
-		base += invalidStyle.Render("✖ Session name is invalid")
+		base += invalidStyle.Render("✖ Session name is invalid\n")
+	case seshNameTooLong:
+		base += invalidStyle.Render("✖ Session name too long\n")
+	default:
+		panic("invalid session name evaluation")
 	}
 
-	lstr := globalStyle.Render(base)
+	lstr := globalStyle.Render(base) + "\n"
+
+	if m.validity == seshNameValid {
+		lstr += tipStyle.Render(fmt.Sprintf(" %s/%s", m.base, m.input.Value()))
+	} else {
+		lstr += "\n"
+	}
 	if m.err != nil {
 		lstr += "\n" + errorStyle.Render("Error: "+m.err.Error())
 	} else {

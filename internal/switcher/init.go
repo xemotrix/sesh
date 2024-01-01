@@ -1,8 +1,8 @@
 package switcher
 
 import (
-	fs "github.com/xemotrix/sesh/file_system"
-	"github.com/xemotrix/sesh/tmux"
+	fs "github.com/xemotrix/sesh/internal/file_system"
+	"github.com/xemotrix/sesh/internal/tmux"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -17,8 +17,13 @@ func InitBubbleTea(path string) error {
 		return err
 	}
 
+	currentSession, err := tmux.GetCurrentSession()
+	if err != nil {
+		return err
+	}
+
 	p := tea.NewProgram(
-		initialModel(path, dirs, sessions),
+		initialModel(path, dirs, sessions, currentSession),
 		tea.WithAltScreen(),
 	)
 	go func() {
@@ -26,5 +31,9 @@ func InitBubbleTea(path string) error {
 	}()
 	m, err := p.Run()
 	model := m.(model)
-	return tmux.SwitchToSession(model.targetSession)
+	targetSession := model.targetSession
+	if targetSession != "" {
+		return nil
+	}
+	return tmux.SwitchToSession(targetSession)
 }
