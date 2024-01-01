@@ -109,6 +109,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "enter":
 			value := m.input.Value()
+			if m.validity != seshNameValid {
+				break
+			}
 			if err := filesystem.CreateDir(m.base, value); err != nil {
 				m.err = err
 				return m, nil
