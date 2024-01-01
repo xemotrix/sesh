@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/xemotrix/sesh/internal/tmux"
@@ -30,6 +32,7 @@ var (
 
 	currentSessionStyle = lipgloss.NewStyle().
 				PaddingTop(2).
+				PaddingLeft(4).
 				Foreground(lipgloss.Color("#727169")).
 				AlignVertical(lipgloss.Bottom)
 
@@ -41,6 +44,7 @@ type model struct {
 	height         int
 	current        string
 	index          int
+	help           help.Model
 	selected       map[string]struct{}
 	targetSessions []string
 	sessions       []string
@@ -51,10 +55,12 @@ func initialModel(sessions []string, current string) model {
 	sessions = slices.DeleteFunc(sessions, func(s string) bool {
 		return s == current
 	})
+	help := help.New()
 
 	return model{
 		sessions: sessions,
 		current:  current,
+		help:     help,
 		selected: make(map[string]struct{}),
 	}
 }
@@ -79,22 +85,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		globalStyle = lipgloss.NewStyle().
+			MarginTop(m.height / 3).
+			Inherit(globalStyle)
 	case tea.KeyMsg:
 		m.err = nil
-		switch msg.String() {
-		case "ctrl+c":
+		switch {
+		case key.Matches(msg, keys.Quit):
 			return m, tea.Quit
-		case "j", "down", "ctrl+j", "ctrl+n":
+		case key.Matches(msg, keys.Help):
+			m.help.ShowAll = !m.help.ShowAll
+		case key.Matches(msg, keys.Down):
 			m.CursorDown()
-		case "k", "up", "ctrl+k", "ctrl+p":
+		case key.Matches(msg, keys.Up):
 			m.CursorUp()
-		case " ":
+		case key.Matches(msg, keys.Select):
 			if _, ok := m.selected[m.sessions[m.index]]; ok {
 				delete(m.selected, m.sessions[m.index])
 			} else {
 				m.selected[m.sessions[m.index]] = struct{}{}
 			}
-		case "enter":
+		case key.Matches(msg, keys.Confirm):
 			if len(m.selected) == 0 {
 				return m, tea.Quit
 			}
@@ -138,5 +149,8 @@ func (m model) View() string {
 	} else {
 		lstr += "\n"
 	}
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, lstr)
+
+	lstr += "\n" + m.help.View(keys)
+
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Top, lstr)
 }

@@ -10,6 +10,8 @@ import (
 	"github.com/xemotrix/sesh/internal/tmux"
 
 	"github.com/charmbracelet/bubbles/cursor"
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -17,7 +19,7 @@ import (
 
 const (
 	WIDTH  = 50
-	HEIGHT = 10
+	HEIGHT = 5
 	MAXLEN = 35
 )
 
@@ -46,7 +48,7 @@ var (
 			Foreground(lipgloss.Color("#727169"))
 
 	feedbackStyle = lipgloss.NewStyle().
-			PaddingTop(2).
+			PaddingTop(1).
 			PaddingLeft(2)
 
 	validStyle = feedbackStyle.Copy().
@@ -58,6 +60,7 @@ var (
 
 type model struct {
 	input         textinput.Model
+	help          help.Model
 	base          string
 	validity      sessionNameEval
 	width         int
@@ -78,7 +81,6 @@ const (
 )
 
 func (m model) validateSessionName(name string) sessionNameEval {
-	// name = strings.TrimSpace(name)
 	if name == "" {
 		return seshNameEmpty
 	}
@@ -96,7 +98,6 @@ func (m model) validateSessionName(name string) sessionNameEval {
 }
 
 func initialModel(base string, dirs []fs.DirEntry, sessions []string) model {
-
 	invalidNames := []string{}
 	invalidNames = append(invalidNames, sessions...)
 	for _, d := range dirs {
@@ -107,8 +108,11 @@ func initialModel(base string, dirs []fs.DirEntry, sessions []string) model {
 	ti.Placeholder = "your-session-name"
 	ti.Focus()
 	ti.Cursor.SetMode(cursor.CursorStatic)
+
+	help := help.New()
 	return model{
 		input:        ti,
+		help:         help,
 		base:         base,
 		invalidNames: invalidNames,
 	}
@@ -123,12 +127,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		globalStyle = lipgloss.NewStyle().
+			MarginTop(m.height / 3).
+			Inherit(globalStyle)
 	case tea.KeyMsg:
 		m.err = nil
-		switch msg.String() {
-		case "ctrl+c":
+		switch {
+		case key.Matches(msg, keys.Quit):
 			return m, tea.Quit
-		case "enter":
+		case key.Matches(msg, keys.Confirm):
 			value := m.input.Value()
 			if m.validity != seshNameValid {
 				break
@@ -183,5 +190,6 @@ func (m model) View() string {
 	} else {
 		lstr += "\n"
 	}
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, lstr)
+	lstr += "\n" + m.help.View(keys)
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Top, lstr)
 }

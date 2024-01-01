@@ -2,22 +2,22 @@ package switcher
 
 import (
 	"fmt"
-	"io"
 	"io/fs"
 	"slices"
-	"strings"
 
+	"github.com/sahilm/fuzzy"
 	"github.com/xemotrix/sesh/internal/tmux"
 
 	"github.com/charmbracelet/bubbles/cursor"
-	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 const (
-	MAXLEN = 35
+	MAX_ELEMENTS = 15
 )
 
 var (
@@ -26,6 +26,7 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#C8C093")).
 			Width(40).
+			Height(20).
 			PaddingLeft(2)
 
 	filterStyle = lipgloss.NewStyle().
@@ -38,6 +39,7 @@ var (
 
 	errorStyle = lipgloss.NewStyle().
 			PaddingTop(1).
+			MarginBottom(1).
 			Foreground(lipgloss.Color("#C34043")).
 			Bold(true)
 
@@ -45,47 +47,6 @@ var (
 	dirItemStyle      = lipgloss.NewStyle().PaddingLeft(4).Foreground(lipgloss.Color("#727169"))
 	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("#FF9E3B"))
 )
-
-type model struct {
-	list          list.Model
-	base          string
-	width         int
-	height        int
-	targetSession string
-	err           error
-}
-
-type itemDelegate struct{}
-
-func (d itemDelegate) Height() int                             { return 1 }
-func (d itemDelegate) Spacing() int                            { return 0 }
-func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
-func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
-	i, ok := listItem.(item)
-	if !ok {
-		return
-	}
-	str := i.name
-
-	if i.current {
-		str = boldStyle.Render(str)
-	}
-
-	var fn func(strs ...string) string
-	if i.iType == SESSION {
-		fn = sessionItemStyle.Render
-	} else {
-		fn = dirItemStyle.Render
-	}
-
-	if index == m.Index() {
-		fn = func(s ...string) string {
-			return selectedItemStyle.Render("* " + strings.Join(s, " "))
-		}
-	}
-
-	fmt.Fprint(w, fn(str))
-}
 
 type item struct {
 	name    string
@@ -101,8 +62,29 @@ const (
 
 func (i item) FilterValue() string { return i.name }
 
+type items []item
+
+func (i items) Len() int              { return len(i) }
+func (i items) String(idx int) string { return i[idx].name }
+
+type model struct {
+	allItems      items
+	filteredItems items
+
+	textInput textinput.Model
+	help      help.Model
+	index     int
+	offset    int
+
+	base          string
+	width         int
+	height        int
+	targetSession string
+	err           error
+}
+
 func initialModel(base string, dirs []fs.DirEntry, sessions []string, current string) model {
-	l := []list.Item{}
+	l := []item{}
 	for _, s := range sessions {
 		l = append(l, item{
 			name:    s,
@@ -119,21 +101,67 @@ func initialModel(base string, dirs []fs.DirEntry, sessions []string, current st
 			})
 		}
 	}
-	li := list.New(l, itemDelegate{}, 20, 20)
-	li.SetShowTitle(false)
-	li.SetShowStatusBar(false)
-	li.SetShowFilter(false)
+	filteredItems := slices.Clone(l)
+
 	ti := textinput.New()
 	ti.Placeholder = "filter sessions / directories"
 	ti.Cursor.SetMode(cursor.CursorStatic)
-	li.FilterInput = ti
+	ti.Focus()
 
-	li.SetShowHelp(false)
-	li.SetShowPagination(false)
+	help := help.New()
 
 	return model{
-		base: base,
-		list: li,
+		base:          base,
+		allItems:      l,
+		filteredItems: filteredItems,
+		textInput:     ti,
+		help:          help,
+	}
+}
+
+func (m *model) cursorUp() {
+	if m.index > 0 {
+		m.index--
+	}
+	if m.index-m.offset <= 0 && m.offset > 0 {
+		m.offset--
+	}
+}
+
+func (m *model) cursorDown() {
+	if m.index < len(m.filteredItems)-1 {
+		m.index++
+	}
+	if m.index-m.offset > MAX_ELEMENTS-2 && m.offset < len(m.filteredItems)-MAX_ELEMENTS {
+		m.offset++
+	}
+}
+
+func (m *model) SelectedItem() *item {
+	if m.index >= 0 && m.index < len(m.filteredItems) {
+		return &m.filteredItems[m.index]
+	}
+	return nil
+}
+func (m *model) resetFilter() {
+	m.textInput.SetValue("")
+	m.updateFilter()
+}
+func (m *model) updateFilter() {
+	query := m.textInput.Value()
+	m.filteredItems = []item{}
+	if query == "" {
+		for _, item := range m.allItems {
+			m.filteredItems = append(m.filteredItems, item)
+		}
+		return
+	}
+	matches := fuzzy.FindFrom(query, m.allItems)
+	for i, match := range matches {
+		if i >= MAX_ELEMENTS {
+			break
+		}
+		m.filteredItems = append(m.filteredItems, m.allItems[match.Index])
 	}
 }
 
@@ -146,20 +174,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		globalStyle = lipgloss.NewStyle().
+			MarginTop(m.height / 4).
+			Inherit(globalStyle)
 	case tea.KeyMsg:
 		m.err = nil
-		switch msg.String() {
-		case "ctrl+c":
+		switch {
+		case key.Matches(msg, keys.Quit):
 			return m, tea.Quit
-		case "ctrl+j":
-			m.list.CursorDown()
-		case "ctrl+k":
-			m.list.CursorUp()
-		case "enter":
-			if m.list.SelectedItem() == nil {
+		case key.Matches(msg, keys.Down):
+			m.cursorDown()
+		case key.Matches(msg, keys.Up):
+			m.cursorUp()
+		case key.Matches(msg, keys.Reset):
+			m.resetFilter()
+		case key.Matches(msg, keys.Help):
+			m.help.ShowAll = !m.help.ShowAll
+			return m, nil
+		case key.Matches(msg, keys.Confirm):
+			it := m.SelectedItem()
+			if it == nil {
 				return m, nil
 			}
-			it := (m.list.SelectedItem()).(item)
 			if it.current {
 				return m, tea.Quit
 			}
@@ -171,21 +207,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.targetSession = it.name
 			return m, tea.Quit
+		default:
+			m.index = 0
 		}
 	}
 	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
+	m.textInput, cmd = m.textInput.Update(msg)
+	m.updateFilter()
 	return m, cmd
 }
 
 func (m model) View() string {
 	base := ""
-	if m.list.SettingFilter() {
-		base += filterStyle.Render(m.list.FilterInput.View()) + "\n"
-	} else {
-		base += "\n"
+	base += filterStyle.Render(m.textInput.View()) + "\n"
+
+	for i, item := range m.filteredItems {
+		if i < m.offset {
+			continue
+		}
+		if i >= m.offset+MAX_ELEMENTS {
+			break
+		}
+		if i == m.index {
+			base += selectedItemStyle.Render("* "+fmt.Sprintf(item.name)) + "\n"
+		} else if item.iType == DIR {
+			base += dirItemStyle.Render(fmt.Sprintf(item.name)) + "\n"
+		} else if item.iType == SESSION {
+			base += sessionItemStyle.Render(fmt.Sprintf(item.name)) + "\n"
+		}
 	}
-	base += m.list.View()
 	base += "\n"
 
 	lstr := globalStyle.Render(base)
@@ -193,7 +243,9 @@ func (m model) View() string {
 	if m.err != nil {
 		lstr += "\n" + errorStyle.Render("Error: "+m.err.Error())
 	} else {
-		lstr += "\n"
+		lstr += "\n" + errorStyle.Render("")
 	}
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, lstr)
+
+	lstr += "\n" + m.help.View(keys)
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Top, lstr)
 }

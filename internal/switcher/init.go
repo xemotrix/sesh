@@ -28,9 +28,6 @@ func InitBubbleTea(path string) error {
 		initialModel(path, dirs, sessions, currentSession),
 		tea.WithAltScreen(),
 	)
-	go func() {
-		p.Send(tea.KeyMsg{Type: -1, Runes: []rune{'/'}, Alt: false})
-	}()
 	m, err := p.Run()
 	model := m.(model)
 
