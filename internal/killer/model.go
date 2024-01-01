@@ -26,9 +26,14 @@ var (
 			Foreground(lipgloss.Color("#C34043")).
 			Bold(true)
 
-	itemStyle           = lipgloss.NewStyle().PaddingLeft(4)
-	currentSessionStyle = lipgloss.NewStyle().PaddingTop(2).Foreground(lipgloss.Color("#727169"))
-	focusedItemStyle    = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("#FF9E3B"))
+	itemStyle = lipgloss.NewStyle().PaddingLeft(4)
+
+	currentSessionStyle = lipgloss.NewStyle().
+				PaddingTop(2).
+				Foreground(lipgloss.Color("#727169")).
+				AlignVertical(lipgloss.Bottom)
+
+	focusedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("#FF9E3B"))
 )
 
 type model struct {
@@ -108,7 +113,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	base := ""
+	base := "\n"
 	for i, s := range m.sessions {
 		selected := " "
 		if _, ok := m.selected[s]; ok {
@@ -124,7 +129,7 @@ func (m model) View() string {
 		base += s + "\n"
 	}
 
-	base += currentSessionStyle.Render(fmt.Sprintf(" Current session: %s\n\n", m.current)) + "\n"
+	base += currentSessionStyle.Render(fmt.Sprintf(" Current session: %s", m.current)) + "\n"
 
 	lstr := globalStyle.Render(base)
 
