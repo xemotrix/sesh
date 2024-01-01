@@ -2,6 +2,7 @@ package tmux
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -59,15 +60,14 @@ func KillSessions(sessions []string) error {
 }
 
 func CreateSession(basePath, session string) error {
-	// cmd := exec.Command(
-	// 	"tmux", "new",
-	// 	"-s",
-	// 	session,
-	// 	"-d", "-c",
-	// 	fmt.Sprintf("%s/%s", basePath, session),
-	// )
-	// return cmd.Run()
-	return errors.New("Not implemented")
+	cmd := exec.Command(
+		"tmux", "new",
+		"-s",
+		session,
+		"-d", "-c",
+		fmt.Sprintf("%s/%s", basePath, session),
+	)
+	return cmd.Run()
 }
 
 func SwitchToSession(session string) error {
