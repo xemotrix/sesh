@@ -15,6 +15,7 @@ For example, if all your repos are in `~/repos`
 ```
 bind-key i run-shell "tmux neww 'sesh switch -p ~/repos'" 
 bind-key u run-shell "tmux neww 'sesh create -p ~/repos'" 
+bind-key k run-shell "tmux neww 'sesh kill'" 
 ```
 
 # Available commands
